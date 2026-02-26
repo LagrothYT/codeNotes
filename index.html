@@ -193,6 +193,7 @@
         <option value="csharp">C#</option>
         <option value="lua">Lua</option>
         <option value="python">Python</option>
+        <option value="asm">Assembly</option>
     </select>
 
     <div id="code-blocks">
@@ -230,7 +231,7 @@
 <div id="toast-container"></div>
 
 <footer>
-    Code Notes v0.2.0 — Built with love for coders(Heart)
+    Code Notes v0.2.0 — Built with love for coders
 </footer>
 
 <script>
@@ -248,6 +249,7 @@ const LANG_LABELS = {
   csharp: "C#",
   lua: "Lua",
   python: "Python",
+  asm: "Assembly"
 };
 
 function getLangLabel(lang) {
@@ -265,7 +267,8 @@ function getPrismLang(lang) {
     cpp: 'cpp',
     csharp: 'csharp',
     lua: 'lua',
-    python: 'python'
+    python: 'python',
+    asm: 'asm6502'
   };
   return map[lang] || 'clike';
 }
@@ -291,7 +294,6 @@ function migrateNote(note) {
   const definition = coerceString(n.definition);
   const category = coerceString(n.category) || "General";
 
-  // Convert legacy formats to codeBlocks[{title,code}]
   let codeBlocks = [];
   if (Array.isArray(n.codeBlocks)) {
     codeBlocks = n.codeBlocks.map(block => {
@@ -305,10 +307,8 @@ function migrateNote(note) {
     codeBlocks = [{ title: "", code: "" }];
   }
 
-  // Ensure at least 1 block
   if (codeBlocks.length === 0) codeBlocks = [{ title: "", code: "" }];
 
-  // Safety: trim code strings
   codeBlocks = codeBlocks.map(b => ({ title: coerceString(b.title), code: coerceString(b.code) }));
 
   return { title, definition, category, codeBlocks, language: coerceString(n.language) };
@@ -322,7 +322,6 @@ function loadNotes() {
   try {
     notes = raw ? JSON.parse(raw).map(migrateNote) : [];
   } catch {
-    // Corrupt storage should not brick the app
     notes = [];
     showToast("Local storage was corrupted for this language. Resetting notes.", true);
     localStorage.removeItem(key);
@@ -338,7 +337,6 @@ function saveNotes() {
 }
 
 function parseInlineCode(text) {
-  // text is expected to already be escaped
   return coerceString(text).replace(/''(.+?)''/g, '<span class="inline-code">$1</span>');
 }
 
@@ -348,7 +346,6 @@ function parseBullets(text) {
   let inList = false;
 
   for (const line of lines) {
-    // Detect bullet lines robustly: optional leading whitespace, then *-
     const match = line.match(/^\s*\*-\s?(.*)$/);
 
     if (match) {
@@ -386,7 +383,6 @@ function getAllCodeBlocks() {
     code: (b.querySelector(".code-input") || {}).value ? b.querySelector(".code-input").value : ""
   }));
 
-  // Trim & filter: keep main block always, but drop empty extra blocks
   const cleaned = arr.map((b) => ({
     title: coerceString(b.title).trim(),
     code: coerceString(b.code).trim()
@@ -496,7 +492,6 @@ function editNote(index) {
     container.appendChild(div);
   });
 
-  // Ensure at least one block exists
   if (!container.children.length) {
     container.innerHTML = `<div class="code-block"><textarea class="code-input" placeholder="Main code block..."></textarea></div>`;
   }
@@ -544,7 +539,6 @@ function copyCode(buttonElement) {
 
   const code = codeElement.innerText;
 
-  // Modern async clipboard if available + secure context, else fallback
   if (navigator.clipboard && window.isSecureContext) {
     navigator.clipboard.writeText(code).then(() => {
       showToast("Code Copied!");
@@ -655,8 +649,7 @@ function importNotes() {
     return;
   }
 
-  // Soft cap (prevents accidental huge imports freezing the browser)
-  const MAX_BYTES = 2_000_000; // ~2MB
+  const MAX_BYTES = 2_000_000;
   if (file.size > MAX_BYTES) {
     showToast("File too large. Keep imports under ~2MB.", true);
     return;
@@ -672,11 +665,7 @@ function importNotes() {
 
       notes = raw.slice(0, 500).map((n) => {
         const migrated = migrateNote(n);
-
-        // Force imported notes into the current language bucket
         migrated.language = currentLang;
-
-        // Clamp some fields to avoid absurd sizes
         migrated.title = migrated.title.slice(0, 120);
         migrated.category = migrated.category.slice(0, 60);
         migrated.definition = migrated.definition.slice(0, 20_000);
@@ -684,10 +673,7 @@ function importNotes() {
           title: coerceString(b.title).slice(0, 80),
           code: coerceString(b.code).slice(0, 200_000),
         }));
-
-        // Ensure at least one block
         if (!migrated.codeBlocks.length) migrated.codeBlocks = [{ title: "", code: "" }];
-
         return migrated;
       });
 
@@ -718,7 +704,6 @@ function showToast(message, isError = false) {
   }, 3000);
 }
 
-// Init
 loadNotes();
 updateFilterDropdown();
 renderNotes();
